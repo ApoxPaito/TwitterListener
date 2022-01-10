@@ -134,7 +134,8 @@ namespace TwitterListener
                 {
                     lastTweetID = tweetID;
                     Console.WriteLine($"New Retweet from {username} at {DateTime.Now} local time");
-                    player.Play();
+                    if (player != null)
+                        player.Play();
                     UpdateDataFile(tweetID, dataFile);
                 }
                 else if (tweetID < lastTweetID) // This is very unlikely to happen but it means they've actually deleted their last Tweet
@@ -148,7 +149,8 @@ namespace TwitterListener
                 {
                     lastTweetID = tweetID;
                     Console.WriteLine($"New Tweet from {username} at {DateTime.Now} local time");
-                    player.Play();
+                    if (player != null)
+                        player.Play();
                     UpdateDataFile(tweetID, dataFile);
                 }
             }
@@ -162,7 +164,7 @@ namespace TwitterListener
             };
 
             string jsonString = JsonConvert.SerializeObject(jsonDict, Formatting.Indented);
-            FileStream fs = new FileStream(dataFile, FileMode.Truncate);
+            FileStream fs = new FileStream(dataFile, FileMode.Create);
             StreamWriter sw = new StreamWriter(fs);
             sw.Write(jsonString);
             sw.Close(); // Let's also close here just in case
