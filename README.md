@@ -1,5 +1,5 @@
 # TwitterListener
-A simple Selenium C# program that alarms the user when a new Tweet (or retweet) is posted
+A simple Selenium C# program that alarms the user when a new Tweet (or retweet) is posted by the specified user
 # Why not use Twitter API?
 If Twitter API v1.1 wasn't a piece of garbage I would have used it by simply just fetching the RSS feed belonging to a certain username frequently. But they pretty much axed the RSS feeds with their new API, so let's say that led me into thinking of a "natural way" of fetching Tweets. Trust me, I've done my research on this. With Selenium, I can just keep refreshing pages belonging to anyone and not be subject to their ridiculous "25 requests max in 15 mins" restriction.
 # So how do I use this?
