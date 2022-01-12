@@ -30,32 +30,15 @@ namespace TwitterListener
 
             // Init variables
             string username = parsed.Value.Username;
-            ulong lastTweetID = 0;
-            SoundPlayer player = null;
             string soundPath = parsed.Value.Sound;
             string dataFile = $"{username}.json";
+            string spaceLink = null;
+            ulong lastTweetID = 0;
 
             // Init sound file
-            if (soundPath == null)
-                Console.WriteLine("No alarm sound was identified, still moving on");
-            else if (!soundPath.Contains(".wav"))
-                Console.WriteLine("Sound file isn't a .wav file, ignoring");
-            else
-            {
-                try
-                {
-                    FileStream fs = new FileStream(soundPath, FileMode.Open);
-                    player = new SoundPlayer(fs);
-                }
-                catch (FileNotFoundException)
-                {
-                    Console.WriteLine("Specified file cannot be found in path, press Q to halt operation or any other key to continue without an alarm sound");
-                    ConsoleKeyInfo key = Console.ReadKey();
-                    if (key.Key == ConsoleKey.Q)
-                        return;
-                    player = null;
-                }
-            }
+            Alarm alarm = new Alarm();
+            if (!alarm.LoadSoundFile(soundPath))
+                return;
 
             // Check for {username}.json and create if it doesn't exist
             try
@@ -66,7 +49,7 @@ namespace TwitterListener
                 JObject jo = JObject.Parse(jsonString);
                 try
                 {
-                    lastTweetID = jo["LastTweetID"].ToObject<ulong>();
+                    lastTweetID = jo["LastTweetID"].ToObject<ulong>(); // Just in case somebody thinks it's a funny idea to create an empty json file beforehand
                 }
                 catch
                 {
@@ -81,14 +64,77 @@ namespace TwitterListener
             }
 
             // Initialize Selenium webdriver and stuff
-            FirefoxOptions options = new FirefoxOptions();
-            options.AddArguments("-private", "-headless");
-            IWebDriver driver = new FirefoxDriver(options);
+            WebdriverHandler.Type driverType = parsed.Value.Firefox ? WebdriverHandler.Type.Firefox : WebdriverHandler.Type.Chrome;
+            WebDriver driver = WebdriverHandler.Init(driverType);
             driver.Navigate().GoToUrl(new Uri($"https://twitter.com/{username}")); // Navigate to said page
+            // If it throws exception here might as well not use this program at all, not gonna try-catch this
+
+            // A program termination event so that we can dispose of the webdriver whenever the program is terminated and we won't have zombie processes running around willy nilly
+            AppDomain.CurrentDomain.ProcessExit += OnProcessTerminated;
 
             // *** Operation under way ***
             while (true)
             {
+                IWebElement element;
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                while (true) // Keep trying to fetch the last Tweet element till it gets loaded up
+                {
+                    try
+                    {
+                        element = driver.FindElement(By.XPath("/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div/div[1]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"));
+                        // This XPath corresponds for the last Tweet sent, for now
+                        break;
+                    }
+                    catch (NoSuchElementException) // If the page hasn't loaded up yet, it will throw this
+                    {
+                        if (sw.ElapsedMilliseconds > 10000) // We have been botted, let's restart the webdriver
+                        {
+                            sw.Reset();
+                            ListenerLog.WriteLine($"Failed to get Tweet data, Twitter probably got up to our jig, restarting the webdriver... [{DateTime.Now} local time]", ConsoleColor.Red);
+                            driver.Manage().Cookies.DeleteAllCookies();
+                            WebdriverHandler.RestartDriver(ref driver, driverType, username);
+                        }
+                    }
+                }
+                element = element.FindElements(By.TagName("a"))[1]; // Somehow it also latches to that first hyperlink up in username
+                string tweetUser;
+                ulong tweetID;
+                SeparateUsernameandTweetID(element.GetAttribute("href"), out tweetUser, out tweetID); // Get the Tweet link
+                if (!username.Equals(tweetUser) && tweetID != lastTweetID) // If username isn't equal, it's probably a retweet
+                {
+                    lastTweetID = tweetID;
+                    ListenerLog.WriteLine($"New Retweet from {username} at {DateTime.Now} local time", ConsoleColor.Green);
+                    alarm.Play();
+                    UpdateDataFile(tweetID, dataFile);
+                }
+                else if (tweetID < lastTweetID) // This is very unlikely to happen but it means they've actually deleted their last Tweet
+                {
+                    lastTweetID = tweetID;
+                    ListenerLog.WriteLine($"Last Tweet from {username} has a lower ID than stored, did they delete something? [{DateTime.Now} local time]", ConsoleColor.DarkGreen);
+                    //alarm.Play(); // Don't warn when Tweets deleted?
+                    UpdateDataFile(tweetID, dataFile);
+                }
+                else if (tweetID != lastTweetID) // Otherwise, it's a direct tweet
+                {
+                    lastTweetID = tweetID;
+                    ListenerLog.WriteLine($"New Tweet from {username} at {DateTime.Now} local time", ConsoleColor.Green);
+                    alarm.Play();
+                    UpdateDataFile(tweetID, dataFile);
+                }
+                // Will need to implement profile integration if this needs to be a thing
+                // Check if the user is running a Twitter Space
+                /*
+                element = driver.FindElement(By.XPath("/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[1]/div/div[1]/div[1]/div[2]/div/div[2]/div[1]"))
+                    .FindElement(By.TagName("a"));
+                string temp = element.GetAttribute("href");
+                if (temp.Contains("spaces") && !temp.Equals(spaceLink))
+                {
+                    spaceLink = temp;
+                    ListenerLog.WriteLine($"{username} has just started up a Tweet Space! [{DateTime.Now} local time]", ConsoleColor.DarkCyan);
+                    alarm.Play();
+                }
+                */
                 while (true)
                 {
                     try
@@ -101,59 +147,17 @@ namespace TwitterListener
                     // It seems it's an internal bug within .NET Selenium bindings
                     // https://stackoverflow.com/questions/22322596/selenium-error-the-http-request-to-the-remote-webdriver-timed-out-after-60-sec
                     {
-                        Console.WriteLine($"Web driver threw an exception on refresh, restarting the webdriver... [{DateTime.Now} local time]");
-                        RestartWebDriver(ref driver, options, username);
+                        //Console.WriteLine($"Web driver threw an exception on refresh, restarting the webdriver... [{DateTime.Now} local time]");
+                        //RestartWebDriver(ref driver, options, username);
+                        // What if we just let the driver refresh again? Would that solve this?
                     }
-                }
-                IWebElement element;
-                Stopwatch sw = new Stopwatch();
-                sw.Start();
-                while (true) // Keep trying to fetch the last Tweet element till it gets loaded up
-                {
-                    try
-                    {
-                        element = driver.FindElement(By.XPath("/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div/div[1]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"));
-                        break;
-                    }
-                    catch (NoSuchElementException) // If the page hasn't loaded up yet, it will throw this
-                    {
-                        if (sw.ElapsedMilliseconds > 10000) // We have been botted, let's restart the webdriver
-                        {
-                            sw.Reset();
-                            Console.WriteLine($"Failed to get Tweet data, Twitter probably got up to our jig, restarting the webdriver... [{DateTime.Now} local time]");
-                            driver.Manage().Cookies.DeleteAllCookies();
-                            RestartWebDriver(ref driver, options, username);
-                        }
-                    }
-                }
-                element = element.FindElements(By.TagName("a"))[1]; // Somehow it also latches to that first hyperlink up in username
-                string tweetUser;
-                ulong tweetID;
-                SeparateUsernameandTweetID(element.GetAttribute("href"), out tweetUser, out tweetID); // Get the Tweet link
-                if (!username.Equals(tweetUser) && tweetID != lastTweetID) // If username isn't equal, it's probably a retweet
-                {
-                    lastTweetID = tweetID;
-                    Console.WriteLine($"New Retweet from {username} at {DateTime.Now} local time");
-                    if (player != null)
-                        player.Play();
-                    UpdateDataFile(tweetID, dataFile);
-                }
-                else if (tweetID < lastTweetID) // This is very unlikely to happen but it means they've actually deleted their last Tweet
-                {
-                    lastTweetID = tweetID;
-                    Console.WriteLine($"Last Tweet from {username} has a lower ID than stored, did they delete something? [{DateTime.Now} local time]");
-                    //player.Play(); // Don't warn when Tweets deleted?
-                    UpdateDataFile(tweetID, dataFile);
-                }
-                else if (tweetID != lastTweetID) // Otherwise, it's a direct tweet
-                {
-                    lastTweetID = tweetID;
-                    Console.WriteLine($"New Tweet from {username} at {DateTime.Now} local time");
-                    if (player != null)
-                        player.Play();
-                    UpdateDataFile(tweetID, dataFile);
                 }
             }
+        }
+
+        private static void OnProcessTerminated(object sender, EventArgs e)
+        {
+            WebdriverHandler.ShutdownDriver();
         }
 
         static void UpdateDataFile(ulong tweetID, string dataFile)
@@ -178,13 +182,6 @@ namespace TwitterListener
             username = href.Substring(href.IndexOf(twitter) + twitter.Length);
             username = username.Substring(0, username.IndexOf("/"));
             tweetID = ulong.Parse(href.Substring(href.IndexOf(status) + status.Length));
-        }
-
-        static void RestartWebDriver(ref IWebDriver driver, FirefoxOptions options, string username)
-        {
-            driver.Quit();
-            driver = new FirefoxDriver(options);
-            driver.Navigate().GoToUrl(new Uri($"https://twitter.com/{username}"));
         }
     }
 }
