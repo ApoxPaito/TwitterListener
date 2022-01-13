@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
@@ -16,42 +17,31 @@ namespace TwitterListener
 
         static WebDriver driver = null;
 
-        public static WebDriver Init(Type type)
+        public static WebDriver Init(Type type, string profileName)
         {
             switch (type)
             {
                 case Type.Firefox:
-                    FirefoxOptions fOptions = new FirefoxOptions();
-                    fOptions.AddArguments("-headless", "-private");
-                    //FirefoxProfileManager manager = new FirefoxProfileManager();
-                    //FirefoxProfile fProfile = manager.GetProfile("default");
-                    //fOptions.Profile = fProfile;
-                    driver = new FirefoxDriver(fOptions);
+                    driver = StartFirefoxDriver(profileName);
                     return driver;
                 case Type.Chrome:
-                    ChromeOptions cOptions = new ChromeOptions();
-                    cOptions.AddArguments("--headless", "--incognito");
-                    driver = new ChromeDriver(cOptions);
+                    driver = StartChromeDriver(profileName);
                     return driver;
             }
             return null;
         }
 
-        public static void RestartDriver(ref WebDriver driver, Type type, string username)
+        public static void RestartDriver(ref WebDriver driver, Type type, string username, string profileName)
         {
             driver.Quit();
             switch (type)
             {
                 case Type.Firefox:
-                    FirefoxOptions fOptions = new FirefoxOptions();
-                    fOptions.AddArguments("-headless", "-private");
-                    driver = new FirefoxDriver(fOptions);
+                    driver = StartFirefoxDriver(profileName);
                     WebdriverHandler.driver = driver;
                     break;
                 case Type.Chrome:
-                    ChromeOptions cOptions = new ChromeOptions();
-                    cOptions.AddArguments("-headless", "-private");
-                    driver = new ChromeDriver(cOptions);
+                    driver = StartChromeDriver(profileName);
                     WebdriverHandler.driver = driver;
                     break;
             }
@@ -73,6 +63,37 @@ namespace TwitterListener
         public static void ShutdownDriver()
         {
             driver.Quit();
+        }
+
+        private static FirefoxDriver StartFirefoxDriver(string profileName)
+        {
+            FirefoxOptions fOptions = new FirefoxOptions();
+            fOptions.AddArgument("-headless");
+            if (!string.IsNullOrEmpty(profileName))
+            {
+                FirefoxProfileManager manager = new FirefoxProfileManager();
+                FirefoxProfile fProfile = manager.GetProfile(profileName);
+                fOptions.Profile = fProfile;
+            }
+            else // No point in asking for profile if we always private
+                fOptions.AddArgument("-private"); 
+            return new FirefoxDriver(fOptions);
+        }
+
+        private static ChromeDriver StartChromeDriver(string profileName)
+        {
+            ChromeOptions cOptions = new ChromeOptions();
+            cOptions.AddArgument("--headless");
+            if (!string.IsNullOrEmpty(profileName))
+            {
+                //Look at how much work I'm doing just for this garbage piece of a browser, this is also a wake up call for you to drop using bad programs
+                string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Google\\Chrome\\User Data");
+                cOptions.AddArguments($"--user-data-dir={path}", $"--profile-directory={profileName}");
+                //I know it's literally two lines of code but I don't feel this is fail safe at all
+            }
+            else // No point in asking for profile if we always private
+                cOptions.AddArgument("--incognito");
+            return new ChromeDriver(cOptions);
         }
     }
 }
