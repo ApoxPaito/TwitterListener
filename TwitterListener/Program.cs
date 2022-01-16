@@ -76,7 +76,8 @@ namespace TwitterListener
 
             // A program termination event so that we can dispose of the webdriver whenever the program is terminated and we won't have zombie processes running around willy nilly
             AppDomain.CurrentDomain.ProcessExit += OnProcessTerminated;
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10); // A delay of ten secs till exception is thrown
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10); // A delay of ten secs till exception is thrown when looking for element
+            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10); // A delay of fifteen secs till exception is thrown when refreshing
             ListenerLog.WriteLine("You can exit the program any time by hitting the Escape button. DO NOT USE termination character, nor should you kill the process suddenly or " +
                 "otherwise you risk the webdriver littering your Local/Temp folder with unwanted profile files", ConsoleColor.DarkMagenta);
             Thread keyListener = new Thread(() => ListenforQuitKey());
@@ -85,8 +86,8 @@ namespace TwitterListener
             // *** Operation under way ***
             while (!exit)
             {
-                IWebElement element;
-                while (true) // Keep trying to fetch the last Tweet element till it gets loaded up
+                IWebElement element = null;
+                while (!exit) // Keep trying to fetch the last Tweet element till it gets loaded up
                 {
                     try
                     {
@@ -98,9 +99,10 @@ namespace TwitterListener
                     {
                         // What if we just deleted cookies and rerolled?
                         driver.Manage().Cookies.DeleteAllCookies();
-                        driver.Navigate().Refresh();
+                        WebdriverHandler.RefreshPageWithExceptionHandling(driver);
                     }
                 }
+                if (exit) break;
                 element = element.FindElements(By.TagName("a"))[1]; // Somehow it also latches to that first hyperlink up in username
                 string tweetUser;
                 ulong tweetID;
@@ -143,18 +145,9 @@ namespace TwitterListener
                         if (parsed.Value.Clipboard.Contains("space")) CopytoClipboard(temp);
                     }
                 }
-                while (true)
-                {
-                    try
-                    {
-                        driver.Navigate().Refresh();
-                        break;
-                    }
-                    catch (WebDriverException)
-                    {
-                        
-                    }
-                }
+                WebdriverHandler.RefreshPageWithExceptionHandling(driver);
+                // Note to thyself: let's persist and move on even if this bastard throws an exception, if the page didn't load, or at least
+                // the element we are looking for didn't load, we'll try to reload it again while fetching the element anyway
             }
             driver.Quit();
             return;

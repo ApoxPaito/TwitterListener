@@ -65,6 +65,18 @@ namespace TwitterListener
             driver.Quit();
         }
 
+        public static void RefreshPageWithExceptionHandling(WebDriver driver)
+        {
+            try
+            {
+                driver.Navigate().Refresh();
+            }
+            catch (WebDriverTimeoutException)
+            { }
+            catch (WebDriverException)
+            { }
+        }
+
         private static FirefoxDriver StartFirefoxDriver(string profileName)
         {
             FirefoxOptions fOptions = new FirefoxOptions();
