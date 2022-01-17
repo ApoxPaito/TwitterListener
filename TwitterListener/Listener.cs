@@ -6,15 +6,12 @@ namespace TwitterListener
 {
     static class Listener
     {
-        private const string d = "M20.235 14.61c-.375-1.745-2.342-3.506-4.01-4.125l-.544-4.948 1.495-2.242c.157-.236.172-." +
-            "538.037-.787-.134-.25-.392-.403-.675-.403h-9.14c-.284 0-.542.154-.676.403-.134.25-.12.553.038.788l1.498 2.247-.484 4." +
-            "943c-1.668.62-3.633 2.38-4.004 4.116-.04.16-.016.404.132.594.103.132.304.29.68.29H8.64l2.904 6.712c.078.184.26.302.458." +
-            "302s.38-.118.46-.302l2.903-6.713h4.057c.376 0 .576-.156.68-.286.146-.188.172-.434.135-.59z";
-        // Apparently this is the value that svg path holds in everyone, probably some encoded pbs.twimg url or smth
         private const string relativeFirst = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div" +
             "/div[1]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of first relative Tweet in the feed
         private const string relativeSecond = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div" +
-            "/div[3]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of second relative Tweet in the feed
+            "/div[2]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of second relative Tweet in the feed
+        private const string relativeThird = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div" +
+            "/div[3]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of third relative Tweet in the feed
         // Both are valid for now ofc
 
         public static IWebElement GetNewestTweetElement(WebDriver driver, ref bool exitState)
@@ -32,8 +29,13 @@ namespace TwitterListener
                     element = element.FindElement(By.XPath(".//div/div/div[2]/div/div")).FindElement(By.TagName("div")); // Crawl deeper in the HTML and close into data-testid block
                     // Pinned Tweets are the bane of my existence I swear to 75 varieties of a butterfly
                     if (!string.IsNullOrEmpty(element.GetAttribute("data-testid"))) // Pinned Tweets have this attribute called data-testid with socialContext in it,
-                        // retweets don't have it and this will return an empty string on those
-                        return driver.FindElement(By.XPath(relativeSecond)); // Let's fetch the next Tweet on the line
+                                                                                    // retweets don't have it and this will return an empty string on those
+                    {
+                        element = element.FindElement(By.XPath(relativeSecond));
+                        if (TryCatchForAdTweet(element)) // There is a chance that second Tweet will be an ad
+                            return driver.FindElement(By.XPath(relativeThird)); // Let's fetch the next Tweet on the line
+                        return element; // If even this fails then Twitter is bloody hopeless
+                    }
                     return driver.FindElement(By.XPath(relativeFirst)); // Topmost re/Tweet is good to go
                 }
                 catch (NoSuchElementException) // If for some reason it can't find the element, it will throw this
@@ -57,6 +59,20 @@ namespace TwitterListener
                 return false;
             }
             return true;
+        }
+
+        private static bool TryCatchForAdTweet(IWebElement element)
+        {
+            try
+            {
+                IWebElement sacrifice = element.FindElements(By.TagName("a"))[1];
+                // This will throw an exception if this is a stinky ad
+            }
+            catch
+            {
+                return true;
+            }
+            return false;
         }
     }
 }
