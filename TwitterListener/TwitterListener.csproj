@@ -85,6 +85,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Alarm.cs" />
+    <Compile Include="Listener.cs" />
     <Compile Include="WebdriverHandler.cs" />
     <Compile Include="ListenerLog.cs" />
     <Compile Include="Options.cs" />

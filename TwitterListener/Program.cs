@@ -51,14 +51,21 @@ namespace TwitterListener
                 FileStream fs = new FileStream(dataFile, FileMode.Open);
                 StreamReader sr = new StreamReader(fs);
                 string jsonString = sr.ReadToEnd();
-                JObject jo = JObject.Parse(jsonString);
                 try
                 {
-                    lastTweetID = jo["LastTweetID"].ToObject<ulong>(); // Just in case somebody thinks it's a funny idea to create an empty json file beforehand
+                    JObject jo = JObject.Parse(jsonString);
+                    try
+                    {
+                        lastTweetID = jo["LastTweetID"].ToObject<ulong>(); // Just in case somebody thinks it's a funny idea to create an empty json file beforehand
+                    }
+                    catch (NullReferenceException)
+                    {
+                        lastTweetID = 0;
+                    }
                 }
-                catch
+                catch (JsonReaderException)
                 {
-                    lastTweetID = 0;
+
                 }
                 sr.Close(); // I get an IO exception down in UpdateDataFile if I don't close it explicitly
                 fs.Close();
@@ -74,8 +81,6 @@ namespace TwitterListener
             driver.Navigate().GoToUrl(new Uri($"https://twitter.com/{username}")); // Navigate to said page
             // If it throws exception here might as well not use this program at all, not gonna try-catch this
 
-            // A program termination event so that we can dispose of the webdriver whenever the program is terminated and we won't have zombie processes running around willy nilly
-            AppDomain.CurrentDomain.ProcessExit += OnProcessTerminated;
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10); // A delay of ten secs till exception is thrown when looking for element
             driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10); // A delay of fifteen secs till exception is thrown when refreshing
             ListenerLog.WriteLine("You can exit the program any time by hitting the Escape button. DO NOT USE termination character, nor should you kill the process suddenly or " +
@@ -83,25 +88,12 @@ namespace TwitterListener
             Thread keyListener = new Thread(() => ListenforQuitKey());
             keyListener.Start();
 
+            // Note to thyself: warn user if the pinned Tweet ID if higher than lastTweetID and do nothing if it's retweet -> check the second element from top afterwards
+
             // *** Operation under way ***
             while (!exit)
             {
-                IWebElement element = null;
-                while (!exit) // Keep trying to fetch the last Tweet element till it gets loaded up
-                {
-                    try
-                    {
-                        element = driver.FindElement(By.XPath("/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div/div[1]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"));
-                        // This XPath corresponds for the last Tweet sent, for now
-                        break;
-                    }
-                    catch (NoSuchElementException) // If for some reason it can't find the element, it will throw this
-                    {
-                        // What if we just deleted cookies and rerolled?
-                        driver.Manage().Cookies.DeleteAllCookies();
-                        WebdriverHandler.RefreshPageWithExceptionHandling(driver);
-                    }
-                }
+                IWebElement element = Listener.GetNewestTweetElement(driver, ref exit);
                 if (exit) break;
                 element = element.FindElements(By.TagName("a"))[1]; // Somehow it also latches to that first hyperlink up in username
                 string tweetUser;
@@ -153,11 +145,6 @@ namespace TwitterListener
             return;
         }
 
-        private static void OnProcessTerminated(object sender, EventArgs e)
-        {
-            WebdriverHandler.ShutdownDriver();
-        }
-
         private static void ListenforQuitKey()
         {
             while (true)
@@ -195,12 +182,10 @@ namespace TwitterListener
             tweetID = ulong.Parse(href.Substring(href.IndexOf(status) + status.Length));
         }
 
-        private static void CopytoClipboard(string link)
+        public static void CopytoClipboard(string link)
         {
             Thread thread = new Thread(() => Clipboard.SetText(link));
-            thread.SetApartmentState(ApartmentState.STA); //Set the thread to STA
             thread.Start();
-            thread.Join();
         }
     }
 }

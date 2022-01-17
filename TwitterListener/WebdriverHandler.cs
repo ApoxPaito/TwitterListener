@@ -15,56 +15,17 @@ namespace TwitterListener
             Chrome
         }
 
-        static WebDriver driver = null;
-
         public static WebDriver Init(Type type, string profileName)
         {
             switch (type)
             {
                 case Type.Firefox:
-                    driver = StartFirefoxDriver(profileName);
-                    return driver;
+                    return StartFirefoxDriver(profileName);
                 case Type.Chrome:
-                    driver = StartChromeDriver(profileName);
-                    return driver;
+                    return StartChromeDriver(profileName);
             }
             return null;
         }
-
-        public static void RestartDriver(ref WebDriver driver, Type type, string username, string profileName)
-        {
-            driver.Quit();
-            switch (type)
-            {
-                case Type.Firefox:
-                    driver = StartFirefoxDriver(profileName);
-                    WebdriverHandler.driver = driver;
-                    break;
-                case Type.Chrome:
-                    driver = StartChromeDriver(profileName);
-                    WebdriverHandler.driver = driver;
-                    break;
-            }
-            while (true)
-            {
-                try
-                {
-                    driver.Navigate().GoToUrl(new Uri($"https://twitter.com/{username}")); // Sometimes even this throws an exception, so let's be safe here
-                    // I don't like my code throwing unhandled exceptions at my face
-                    break;
-                }
-                catch (WebDriverException)
-                {
-                    //RestartWebDriver(ref driver, options, username);
-                }
-            }
-        }
-
-        public static void ShutdownDriver()
-        {
-            driver.Quit();
-        }
-
         public static void RefreshPageWithExceptionHandling(WebDriver driver)
         {
             try
