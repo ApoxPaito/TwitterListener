@@ -185,6 +185,7 @@ namespace TwitterListener
         public static void CopytoClipboard(string link)
         {
             Thread thread = new Thread(() => Clipboard.SetText(link));
+            thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
         }
     }

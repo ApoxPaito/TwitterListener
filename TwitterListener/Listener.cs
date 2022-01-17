@@ -29,7 +29,7 @@ namespace TwitterListener
                     if (element.FindElements(By.XPath(".//*")).Count == 0) // See if any children exist
                         return driver.FindElement(By.XPath(relativeFirst)); // This is a direct Tweet, no retweet or pin data
                     driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10); // A delay of ten secs till exception is thrown when looking for element
-                    element = element.FindElement(By.XPath("/div/div/div[2]/div/div")).FindElement(By.TagName("div")); // Crawl deeper in the HTML and close into data-testid block
+                    element = element.FindElement(By.XPath(".//div/div/div[2]/div/div")).FindElement(By.TagName("div")); // Crawl deeper in the HTML and close into data-testid block
                     // Pinned Tweets are the bane of my existence I swear to 75 varieties of a butterfly
                     if (!string.IsNullOrEmpty(element.GetAttribute("data-testid"))) // Pinned Tweets have this attribute called data-testid with socialContext in it,
                         // retweets don't have it and this will return an empty string on those
