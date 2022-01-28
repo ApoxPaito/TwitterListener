@@ -6,11 +6,11 @@ namespace TwitterListener
 {
     static class Listener
     {
-        private const string relativeFirst = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div" +
+        private const string relativeFirst = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div" +
             "/div[1]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of first relative Tweet in the feed
-        private const string relativeSecond = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div" +
+        private const string relativeSecond = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div" +
             "/div[2]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of second relative Tweet in the feed
-        private const string relativeThird = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div" +
+        private const string relativeThird = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div" +
             "/div[3]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of third relative Tweet in the feed
         // Both are valid for now ofc
 
@@ -20,7 +20,7 @@ namespace TwitterListener
             {
                 try
                 {
-                    IWebElement element = driver.FindElement(By.XPath("/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/div[2]/section/div/div/div[1]/div/div/article/div/div/div/div[1]/div/div"));
+                    IWebElement element = driver.FindElement(By.XPath("/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div/div[1]/div/div/article/div/div/div/div[1]/div/div"));
                     // Get a grab of relative path of the retweet and pin data elements
                     driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(0); // Remove delay for a millisec
                     if (element.FindElements(By.XPath(".//*")).Count == 0) // See if any children exist
