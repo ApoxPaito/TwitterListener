@@ -14,7 +14,7 @@ namespace TwitterListener
             "/div[3]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of third relative Tweet in the feed
         // All are valid for now ofc
 
-        public static IWebElement GetNewestTweetElement(WebDriver driver, ref bool exitState)
+        public static IWebElement GetNewestTweetElement(ref WebDriver driver, WebdriverHandler.Browser browser, string profileName, ref bool exitState, string username)
         {
             while (!exitState)
             {
@@ -40,12 +40,7 @@ namespace TwitterListener
                 }
                 catch (Exception ex) // If for some reason it can't find the element, it will throw this
                 {
-                    if (ex is NoSuchElementException || ex is StaleElementReferenceException)
-                    {
-                        // What if we just deleted cookies and rerolled?
-                        driver.Manage().Cookies.DeleteAllCookies();
-                        WebdriverHandler.RefreshPageWithExceptionHandling(driver);
-                    }
+                    if (ex is NoSuchElementException || ex is StaleElementReferenceException) WebdriverHandler.RefreshPageWithExceptionHandling(driver);
                 }
             }
             return null;

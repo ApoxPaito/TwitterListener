@@ -9,23 +9,24 @@ namespace TwitterListener
 {
     static class WebdriverHandler
     {
-        public enum Type
+        public enum Browser
         {
             Firefox,
             Chrome
         }
 
-        public static WebDriver Init(Type type, string profileName)
-        {
-            switch (type)
+        public static WebDriver Init(Browser browser, string profileName)
+        {;
+            switch (browser)
             {
-                case Type.Firefox:
+                case Browser.Firefox:
                     return StartFirefoxDriver(profileName);
-                case Type.Chrome:
+                case Browser.Chrome:
                     return StartChromeDriver(profileName);
             }
             return null;
         }
+
         public static void RefreshPageWithExceptionHandling(WebDriver driver)
         {
             try

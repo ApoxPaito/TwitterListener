@@ -76,8 +76,8 @@ namespace TwitterListener
             }
 
             // Initialize Selenium webdriver and stuff
-            WebdriverHandler.Type driverType = parsed.Value.Firefox ? WebdriverHandler.Type.Firefox : WebdriverHandler.Type.Chrome;
-            WebDriver driver = WebdriverHandler.Init(driverType, profileName);
+            WebdriverHandler.Browser browser = parsed.Value.Firefox ? WebdriverHandler.Browser.Firefox : WebdriverHandler.Browser.Chrome;
+            WebDriver driver = WebdriverHandler.Init(browser, profileName);
             driver.Navigate().GoToUrl(new Uri($"https://twitter.com/{username}")); // Navigate to said page
             // If it throws exception here might as well not use this program at all, not gonna try-catch this
 
@@ -93,7 +93,7 @@ namespace TwitterListener
             // *** Operation under way ***
             while (!exit)
             {
-                IWebElement element = Listener.GetNewestTweetElement(driver, ref exit);
+                IWebElement element = Listener.GetNewestTweetElement(ref driver, browser, profileName, ref exit, username);
                 if (exit) break;
                 element = element.FindElements(By.TagName("a"))[1]; // Somehow it also latches to that first hyperlink up in username
                 string tweetUser;
