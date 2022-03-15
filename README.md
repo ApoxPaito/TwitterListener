@@ -1,5 +1,3 @@
-**NOTE:** If you were using Firefox and ending the program immaturely such as sending termination character in cmd just like me before commit daf7e12dbbba46d946bf7bc9d3680d6543b3f1cd, be sure to check your Local/Temp folder for left behind litter profiles starting with rust_mozprofile*. These are safe to delete and just litter up space on your hard disk space, sorry for the inconvenience caused before ~~then again who in their right mind would actually use this thing jeez~~
-
 # TwitterListener
 A simple Selenium C# program that alarms the user when a new Tweet (or retweet) is posted by the specified user
 # Why not use Twitter API?
