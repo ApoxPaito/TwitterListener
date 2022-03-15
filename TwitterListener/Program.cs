@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading;
 using System.Windows;
@@ -75,6 +76,15 @@ namespace TwitterListener
 
             }
 
+            // Clean litter rust_mozprofiles before starting the webdriver
+            string[] dirs = Directory.GetDirectories(Path.GetTempPath());
+            dirs = dirs.Where(x => x.Contains("rust_mozprofile")).ToArray();
+            foreach (string dir in dirs)
+            {
+                DirectoryInfo dinfo = new DirectoryInfo(dir);
+                dinfo.Delete(true);
+            }
+
             // Initialize Selenium webdriver and stuff
             WebdriverHandler.Browser browser = parsed.Value.Firefox ? WebdriverHandler.Browser.Firefox : WebdriverHandler.Browser.Chrome;
             WebDriver driver = WebdriverHandler.Init(browser, profileName);
@@ -88,17 +98,22 @@ namespace TwitterListener
             Thread keyListener = new Thread(() => ListenforQuitKey());
             keyListener.Start();
 
-            // Note to thyself: warn user if the pinned Tweet ID if higher than lastTweetID and do nothing if it's retweet -> check the second element from top afterwards
-
             // *** Operation under way ***
             while (!exit)
             {
                 IWebElement element = Listener.GetNewestTweetElement(ref driver, browser, profileName, ref exit, username);
                 if (exit) break;
-                element = element.FindElements(By.TagName("a"))[1]; // Somehow it also latches to that first hyperlink up in username
+                // I turned this into a super failsafe way so that if they ever move <a>s around it won't fail again
+                // Bloody bastards
+                ReadOnlyCollection<IWebElement> attributes = element.FindElements(By.TagName("a"));
                 string tweetUser;
                 ulong tweetID;
-                string link = element.GetAttribute("href");
+                string link = "";
+                foreach (IWebElement webElement in attributes)
+                {
+                    link = webElement.GetAttribute("href");
+                    if (link.Contains("status/")) break;
+                } // If we got a non-status link even after this, then it means they changed something really crucial in steps above
                 SeparateUsernameandTweetID(link, out tweetUser, out tweetID); // Get the Tweet link
                 if (!username.Equals(tweetUser) && tweetID != lastTweetID) // If username isn't equal, it's probably a retweet
                 {
