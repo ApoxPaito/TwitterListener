@@ -10,8 +10,7 @@ namespace TwitterListener
             "/div[1]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of first relative Tweet in the feed
         private const string relativeSecond = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div" +
             "/div[2]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of second relative Tweet in the feed
-        private const string relativeThird = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div" +
-            "/div[3]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of third relative Tweet in the feed
+        private const string relativeThird = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div/div[3]/div/div/article/div/div/div/div[2]/div[2]/div[1]/div/div/div[1]"; // This is the XPath of third relative Tweet in the feed
         // All are valid for now ofc
 
         public static IWebElement GetNewestTweetElement(ref WebDriver driver, WebdriverHandler.Browser browser, string profileName, ref bool exitState, string username)
@@ -31,8 +30,20 @@ namespace TwitterListener
                     if (!string.IsNullOrEmpty(element.GetAttribute("data-testid"))) // Pinned Tweets have this attribute called data-testid with socialContext in it,
                                                                                     // retweets don't have it and this will return an empty string on those
                     {
+                        // Stop scuffing your ad Tweets beyond usage Twitter, holy fucking shit
+                        // Check if there is an empty ad shell on the second slot for some bloody reason
+                        const string relativeAd = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/div[2]/div/div/section/div/div/div[2]/div";
+                        element = element.FindElement(By.XPath(relativeAd));
+                        driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(0); // Remove delay for a millisec
+                        if (element.FindElements(By.XPath(".//*")).Count == 0) // If it has no children, this is a stinky empty ad Tweet which has no reason to be there for some bloody unapparent reason
+                        {
+                            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10); // Let's not forget to reintroduce implicit wait
+                            return driver.FindElement(By.XPath(relativeThird));
+                        }
+                        driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10); // A delay of ten secs till exception is thrown when looking for element
+                        // If not, we'll check the second Tweet
                         element = element.FindElement(By.XPath(relativeSecond));
-                        if (TryCatchForAdTweet(element)) // There is a chance that second Tweet will be an ad
+                        if (TryCatchForAdTweet(element)) // But there is a chance that second Tweet will be an ad even if we don't get the empty ad Tweet scuff
                             return driver.FindElement(By.XPath(relativeThird)); // Let's fetch the next Tweet on the line
                         return element; // If even this fails then Twitter is bloody hopeless
                     }
